@@ -1,5 +1,11 @@
 use crate::core::models::*;
 
+pub struct NotificationToast {
+    pub message: String,
+    pub created_at: std::time::Instant,
+    pub ttl: std::time::Duration,
+}
+
 // ─── App Screens ──────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -181,7 +187,7 @@ pub struct AppState {
     pub server_logs: Vec<String>,
     pub export_path: String,
     pub export_path_editing: bool,
-    pub notification: Option<(String, std::time::Instant)>,
+    pub notification: Option<NotificationToast>,
     pub auth_strategy_idx: usize,
     pub fake_db_model_idx: usize,
     pub fake_db_scroll: usize,
@@ -222,12 +228,24 @@ impl AppState {
     }
 
     pub fn notify(&mut self, msg: String) {
-        self.notification = Some((msg, std::time::Instant::now()));
+        let len = msg.len();
+        let ttl_secs = if len <= 40 {
+            2
+        } else if len <= 100 {
+            3
+        } else {
+            5
+        };
+        self.notification = Some(NotificationToast {
+            message: msg,
+            created_at: std::time::Instant::now(),
+            ttl: std::time::Duration::from_secs(ttl_secs),
+        });
     }
 
     pub fn tick_notification(&mut self) {
-        if let Some((_, ts)) = &self.notification {
-            if ts.elapsed().as_secs() >= 3 {
+        if let Some(toast) = &self.notification {
+            if toast.created_at.elapsed() >= toast.ttl {
                 self.notification = None;
             }
         }

@@ -127,7 +127,7 @@ pub fn start_server(
     if let Some(stderr) = child.stderr.take() {
         let tx = log_tx.clone();
         thread::spawn(move || {
-            for line in BufReader::new(stderr).lines().flatten() {
+            for line in BufReader::new(stderr).lines().map_while(Result::ok) {
                 let _ = tx.send(line);
             }
         });
@@ -135,7 +135,7 @@ pub fn start_server(
     if let Some(stdout) = child.stdout.take() {
         let tx = log_tx;
         thread::spawn(move || {
-            for line in BufReader::new(stdout).lines().flatten() {
+            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
                 let _ = tx.send(line);
             }
         });

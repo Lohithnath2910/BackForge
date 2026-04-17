@@ -81,8 +81,8 @@ pub fn render(f: &mut Frame, state: &AppState) {
     }
 
     // Notification toast
-    if let Some((msg, _)) = &state.notification {
-        render_toast(f, msg);
+    if let Some(toast) = &state.notification {
+        render_toast(f, &toast.message);
     }
 }
 

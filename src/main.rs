@@ -6,6 +6,7 @@ mod server;
 use std::io;
 use std::process::Child;
 use std::sync::mpsc;
+use std::thread;
 use std::time::Duration;
 use std::path::PathBuf;
 use std::fs;
@@ -236,6 +237,7 @@ fn main() -> anyhow::Result<()> {
 
     let mut server_child: Option<Child> = None;
     let (log_tx, log_rx) = mpsc::channel::<String>();
+    let (server_start_tx, server_start_rx) = mpsc::channel::<Result<Child, String>>();
 
     // ── Main loop ────────────────────────────────────────────────────────────
     loop {
@@ -267,6 +269,20 @@ fn main() -> anyhow::Result<()> {
             }
         }
 
+        // Receive async server startup result
+        while let Ok(start_result) = server_start_rx.try_recv() {
+            match start_result {
+                Ok(child) => {
+                    server_child = Some(child);
+                    state.notify(format!("Server starting on :{} ...", state.server_port));
+                }
+                Err(e) => {
+                    state.server_status = ServerStatus::Error(e.clone());
+                    state.server_logs.push(format!("ERROR: {}", e));
+                }
+            }
+        }
+
         terminal.draw(|f| render(f, &state))?;
 
         if event::poll(Duration::from_millis(16))? {
@@ -278,6 +294,9 @@ fn main() -> anyhow::Result<()> {
                 match action {
                     AppAction::Quit => break,
                     AppAction::StartServer => {
+                        if !matches!(state.server_status, ServerStatus::Stopped) {
+                            continue;
+                        }
                         state.server_status = ServerStatus::Starting;
                         state.server_logs.clear();
                         let missing = server::check_python_deps();
@@ -286,16 +305,14 @@ fn main() -> anyhow::Result<()> {
                             state.server_status = ServerStatus::Error(msg.clone());
                             state.server_logs.push(format!("ERROR: {}", msg));
                         } else {
-                            match start_server(&state.project, state.server_port, log_tx.clone()) {
-                                Ok(child) => {
-                                    server_child = Some(child);
-                                    state.notify(format!("Server starting on :{} ...", state.server_port));
-                                }
-                                Err(e) => {
-                                    state.server_status = ServerStatus::Error(e.clone());
-                                    state.server_logs.push(format!("ERROR: {}", e));
-                                }
-                            }
+                            let project = state.project.clone();
+                            let port = state.server_port;
+                            let log_sender = log_tx.clone();
+                            let result_sender = server_start_tx.clone();
+                            thread::spawn(move || {
+                                let result = start_server(&project, port, log_sender);
+                                let _ = result_sender.send(result);
+                            });
                         }
                     }
                     AppAction::StopServer => {
