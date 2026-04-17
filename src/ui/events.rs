@@ -404,12 +404,42 @@ fn handle_new_endpoint_modal(state: &mut AppState, key: KeyEvent) -> AppAction {
             state.editing_endpoint_id = None;
             state.endpoint_form = EndpointForm::default();
         }
-        KeyCode::Tab | KeyCode::Down => {
+        KeyCode::Tab => {
             state.endpoint_form.focused_field =
                 (state.endpoint_form.focused_field + 1) % total_fields;
         }
-        KeyCode::BackTab | KeyCode::Up => {
+        KeyCode::BackTab => {
             if state.endpoint_form.focused_field == 0 {
+                state.endpoint_form.focused_field = total_fields - 1;
+            } else {
+                state.endpoint_form.focused_field -= 1;
+            }
+        }
+        KeyCode::Down => {
+            if state.endpoint_form.focused_field == 5 {
+                // On picker row: Down cycles available fields
+                let count = linked_model_field_count(state);
+                if count > 0 {
+                    state.endpoint_form.field_picker_idx =
+                        (state.endpoint_form.field_picker_idx + 1) % count;
+                }
+            } else {
+                state.endpoint_form.focused_field =
+                    (state.endpoint_form.focused_field + 1) % total_fields;
+            }
+        }
+        KeyCode::Up => {
+            if state.endpoint_form.focused_field == 5 {
+                // On picker row: Up cycles available fields backward
+                let count = linked_model_field_count(state);
+                if count > 0 {
+                    if state.endpoint_form.field_picker_idx == 0 {
+                        state.endpoint_form.field_picker_idx = count - 1;
+                    } else {
+                        state.endpoint_form.field_picker_idx -= 1;
+                    }
+                }
+            } else if state.endpoint_form.focused_field == 0 {
                 state.endpoint_form.focused_field = total_fields - 1;
             } else {
                 state.endpoint_form.focused_field -= 1;
@@ -423,7 +453,9 @@ fn handle_new_endpoint_modal(state: &mut AppState, key: KeyEvent) -> AppAction {
                 // On the field-picker row: add currently highlighted model field
                 add_picked_field(state);
             } else {
-                commit_endpoint(state);
+                // Move to next field instead of accidental early submit.
+                state.endpoint_form.focused_field =
+                    (state.endpoint_form.focused_field + 1) % total_fields;
             }
         }
         KeyCode::Left  => handle_endpoint_form_left(state),

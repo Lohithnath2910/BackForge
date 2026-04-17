@@ -5,6 +5,41 @@ use crate::core::models::*;
 
 pub fn export_project(project: &Project, output_dir: &str) -> Result<Vec<String>> {
     let root = Path::new(output_dir);
+    let parent = root.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent)?;
+
+    let staging = parent.join(format!(".backforge-export-staging-{}", uuid::Uuid::new_v4()));
+    if staging.exists() {
+        fs::remove_dir_all(&staging)?;
+    }
+
+    let generated_files = build_export_tree(project, &staging, output_dir)?;
+
+    if root.exists() {
+        let backup = parent.join(format!(".backforge-export-backup-{}", uuid::Uuid::new_v4()));
+        if backup.exists() {
+            fs::remove_dir_all(&backup)?;
+        }
+
+        fs::rename(root, &backup)?;
+        match fs::rename(&staging, root) {
+            Ok(_) => {
+                let _ = fs::remove_dir_all(&backup);
+            }
+            Err(e) => {
+                let _ = fs::rename(&backup, root);
+                let _ = fs::remove_dir_all(&staging);
+                return Err(e.into());
+            }
+        }
+    } else {
+        fs::rename(&staging, root)?;
+    }
+
+    Ok(generated_files)
+}
+
+fn build_export_tree(project: &Project, root: &Path, output_dir: &str) -> Result<Vec<String>> {
     let mut generated_files: Vec<String> = Vec::new();
 
     // Create directory structure
@@ -1012,7 +1047,7 @@ fn infer_query_type(model: &Model, param: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{generate_endpoint_handler, generate_schema_file};
+    use super::{export_project, generate_endpoint_handler, generate_schema_file};
     use crate::core::models::{CrudOp, DataType, Endpoint, HttpMethod, Model, ModelField, Project};
 
     fn sample_model() -> Model {
@@ -1083,6 +1118,25 @@ mod tests {
         let out = generate_schema_file(&model);
         assert!(out.contains("class ApiKeyCreate(ApiKeyBase):"));
         assert!(out.contains("key: UUID"));
+    }
+
+    #[test]
+    fn export_replaces_existing_directory_atomically() {
+        let project = Project::new("AtomicExport".to_string());
+        let out = std::env::temp_dir().join(format!(
+            "backforge_export_atomic_{}",
+            uuid::Uuid::new_v4()
+        ));
+
+        std::fs::create_dir_all(&out).unwrap();
+        std::fs::write(out.join("stale.txt"), "old").unwrap();
+
+        let generated = export_project(&project, out.to_str().unwrap()).unwrap();
+        assert!(generated.iter().any(|f| f == "main.py"));
+        assert!(out.join("main.py").exists());
+        assert!(!out.join("stale.txt").exists());
+
+        let _ = std::fs::remove_dir_all(&out);
     }
 }
 
