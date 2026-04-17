@@ -697,7 +697,7 @@ fn generate_endpoint_preview(ep: &Endpoint, state: &AppState) -> Vec<Line<'stati
     lines.push(Line::from(vec![
         kw("async def "),
         Span::styled(
-            format!("{}_{}", method_lower, ep.path.trim_matches('/').replace('/', "_").replace('{', "").replace('}', "")),
+            format!("{}_{}", method_lower, ep.path.trim_matches('/').replace('/', "_").replace(['{', '}'], "")),
             Style::default().fg(Color::Rgb(220, 220, 100)),
         ),
         txt("("),
@@ -1637,7 +1637,7 @@ fn render_endpoint_tester(f: &mut Frame, state: &AppState) {
 
     // ── Row picker overlay ────────────────────────────────────────────────────
     if state.tester.picker_open {
-        render_tester_picker(f, state, &ep);
+        render_tester_picker(f, state, ep);
     }
 }
 

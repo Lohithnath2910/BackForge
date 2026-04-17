@@ -36,10 +36,9 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> AppAction {
     }
 
     // Dismiss notification
-    if state.notification.is_some() {
-        if key.code == KeyCode::Esc || key.code == KeyCode::Enter {
-            state.notification = None;
-        }
+    if state.notification.is_some()
+        && (key.code == KeyCode::Esc || key.code == KeyCode::Enter) {
+        state.notification = None;
     }
 
     // Modal handling takes priority
@@ -533,7 +532,7 @@ fn commit_endpoint(state: &mut AppState) {
 
     let methods = HttpMethod::variants();
     let method = methods[state.endpoint_form.method_index].clone();
-    let crud_ops = vec![
+    let crud_ops = [
         CrudOp::Create, CrudOp::ReadOne, CrudOp::ReadAll,
         CrudOp::Update, CrudOp::Delete, CrudOp::Custom,
     ];
@@ -755,7 +754,7 @@ fn handle_auth_modal(state: &mut AppState, key: KeyEvent) -> AppAction {
         KeyCode::Esc => state.modal = Modal::None,
         KeyCode::Enter => {
             state.project.auth_config.enabled = true;
-            let strategies = vec![AuthStrategy::JWT, AuthStrategy::Session, AuthStrategy::APIKey];
+            let strategies = [AuthStrategy::JWT, AuthStrategy::Session, AuthStrategy::APIKey];
             state.project.auth_config.strategy = strategies[state.auth_strategy_idx].clone();
             // Add auth endpoints automatically
             add_auth_endpoints(state);
@@ -824,7 +823,7 @@ fn handle_auth_setup(state: &mut AppState, key: KeyEvent) -> AppAction {
                 } else {
                     state.auth_strategy_idx = (state.auth_strategy_idx + 1) % len;
                 }
-                let strategies = vec![AuthStrategy::JWT, AuthStrategy::Session, AuthStrategy::APIKey];
+                let strategies = [AuthStrategy::JWT, AuthStrategy::Session, AuthStrategy::APIKey];
                 state.project.auth_config.strategy = strategies[state.auth_strategy_idx].clone();
             }
         }
@@ -1050,7 +1049,7 @@ fn build_fire_request(state: &mut AppState, ep: &Endpoint) -> AppAction {
         state.project.models.iter()
             .find(|m| &m.id == model_id)
             .map(|m| format!("/{}", m.name.to_lowercase()
-                .replace(' ', "_").replace('-', "_").replace('.', "_")))
+                .replace([' ', '-', '.'], "_")))
             .unwrap_or_default()
     } else { String::new() };
 

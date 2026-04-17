@@ -37,12 +37,9 @@ pub enum Modal {
 
 // ─── Form State ───────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ModelForm {
     pub name: String,
-}
-impl Default for ModelForm {
-    fn default() -> Self { ModelForm { name: String::new() } }
 }
 
 #[derive(Debug, Clone)]
@@ -252,8 +249,10 @@ impl AppState {
     }
 
     pub fn open_tester(&mut self, ep_idx: usize) {
-        let mut t = TesterState::default();
-        t.endpoint_idx = ep_idx;
+        let mut t = TesterState {
+            endpoint_idx: ep_idx,
+            ..TesterState::default()
+        };
 
         if let Some(ep) = self.project.endpoints.get(ep_idx) {
             let ep = ep.clone();

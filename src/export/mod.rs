@@ -158,9 +158,7 @@ fn write_file(root: &Path, rel: &str, content: &str, log: &mut Vec<String>) -> R
 /// Returns a valid Python module name (lowercase, underscores only)
 fn safe_model_name(name: &str) -> String {
     name.to_lowercase()
-        .replace(' ', "_")
-        .replace('-', "_")
-        .replace('.', "_")
+    .replace([' ', '-', '.'], "_")
 }
 
 // ── main.py ──────────────────────────────────────────────────────────────────
@@ -805,7 +803,7 @@ def refresh(token: str, db: Session = Depends(get_db)):
 fn generate_router_file(model: &Model, endpoints: &[&Endpoint], project: &Project) -> String {
     // mn must be a valid Python identifier: lowercase, underscores only
     let mn = model.name.to_lowercase()
-        .replace(' ', "_").replace('-', "_").replace('.', "_");
+        .replace([' ', '-', '.'], "_");
     let mn_cap = &model.name;
 
     let auth_import = if project.auth_config.enabled {
@@ -857,7 +855,7 @@ router = APIRouter()
 #[allow(dead_code)]
 fn generate_default_crud(model: &Model) -> String {
     let mn = model.name.to_lowercase()
-        .replace(' ', "_").replace('-', "_").replace('.', "_");
+        .replace([' ', '-', '.'], "_");
     let mn_cap = &model.name;
 
     format!(
@@ -911,17 +909,15 @@ def delete_{mn}({mn}_id: int, db: Session = Depends(get_db)):
 fn generate_endpoint_handler(ep: &Endpoint, model: &Model, project: &Project) -> String {
     let method = ep.method.as_str().to_lowercase();
     let mn = model.name.to_lowercase()
-        .replace(' ', "_").replace('-', "_").replace('.', "_");
+        .replace([' ', '-', '.'], "_");
     let mn_cap = &model.name;
 
     // Build a valid Python function name from the path
     let path_part = ep.path
         .trim_matches('/')
         .replace('/', "_")
-        .replace('{', "")
-        .replace('}', "")
-        .replace('-', "_")
-        .replace('.', "_");
+        .replace(['{', '}'], "")
+        .replace(['-', '.'], "_");
     // If path was "/" or becomes empty, use model name
     let path_part = if path_part.is_empty() {
         mn.clone()
@@ -1046,6 +1042,7 @@ fn infer_query_type(model: &Model, param: &str) -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::{export_project, generate_endpoint_handler, generate_schema_file};
     use crate::core::models::{CrudOp, DataType, Endpoint, HttpMethod, Model, ModelField, Project};
@@ -1147,8 +1144,8 @@ fn generate_custom_router(endpoints: &[&Endpoint]) -> String {
         let path_part = ep.path
             .trim_matches('/')
             .replace('/', "_")
-            .replace('{', "").replace('}', "")
-            .replace('-', "_").replace('.', "_");
+            .replace(['{', '}'], "")
+            .replace(['-', '.'], "_");
         let path_part = if path_part.is_empty() {
             format!("route_{}", i)
         } else {

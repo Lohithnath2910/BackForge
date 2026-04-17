@@ -4,6 +4,7 @@ use uuid::Uuid;
 // ─── Data Types ──────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum DataType {
     String,
     Integer,
@@ -119,6 +120,7 @@ impl Model {
 // ─── HTTP Methods ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum HttpMethod {
     GET,
     POST,
@@ -227,6 +229,7 @@ impl Endpoint {
 // ─── Auth Config ──────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum AuthStrategy {
     JWT,
     Session,
