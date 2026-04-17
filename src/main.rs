@@ -65,6 +65,28 @@ fn delete_project_file(name: &str) -> bool {
     fs::remove_file(&path).is_ok()
 }
 
+fn rename_project_file(old_name: &str, new_name: &str) -> anyhow::Result<PathBuf> {
+    let dir = projects_dir();
+    fs::create_dir_all(&dir)?;
+
+    let old_path = dir.join(format!("{}.json", safe_filename(old_name)));
+    let new_path = dir.join(format!("{}.json", safe_filename(new_name)));
+
+    if !old_path.exists() {
+        anyhow::bail!("Project '{}' does not exist", old_name);
+    }
+    if new_path.exists() {
+        anyhow::bail!("Project '{}' already exists", new_name);
+    }
+
+    let json = fs::read_to_string(&old_path)?;
+    let mut project: Project = serde_json::from_str(&json)?;
+    project.name = new_name.to_string();
+    fs::write(&new_path, serde_json::to_string_pretty(&project)?)?;
+    fs::remove_file(&old_path)?;
+    Ok(new_path)
+}
+
 /// Returns list of (display_name, file_path) by reading the actual JSON name field
 fn list_saved_projects() -> Vec<(String, PathBuf)> {
     let dir = projects_dir();
@@ -122,6 +144,7 @@ fn select_project() -> (String, Option<Project>) {
         println!("  [n]  New project");
         if !saved.is_empty() {
             println!("  [d#] Delete project  (e.g. d1, d2 ...)");
+            println!("  [r# name] Rename project (e.g. r1 MyApi)");
         }
         println!("  [q]  Quit\n");
 
@@ -160,6 +183,40 @@ fn select_project() -> (String, Option<Project>) {
                     }
                 } else {
                     println!("  Usage: d1, d2, d3 ... to delete by number.\n");
+                }
+                continue;
+            }
+            s if s.starts_with('r') || s.starts_with('R') => {
+                let tail = &s[1..];
+                let mut parts = tail.splitn(2, ' ');
+                let idx_raw = parts.next().unwrap_or("").trim();
+                let mut new_name = parts.next().unwrap_or("").trim().to_string();
+
+                let Ok(idx) = idx_raw.parse::<usize>() else {
+                    println!("  Usage: r1 NewName (rename by number)\n");
+                    continue;
+                };
+                if idx < 1 || idx > saved.len() {
+                    println!("  Invalid number.\n");
+                    continue;
+                }
+
+                if new_name.is_empty() {
+                    print!("  New name: ");
+                    let _ = io::stdout().flush();
+                    let mut name_input = String::new();
+                    let _ = io::stdin().read_line(&mut name_input);
+                    new_name = name_input.trim().to_string();
+                }
+                if new_name.is_empty() {
+                    println!("  Name cannot be empty.\n");
+                    continue;
+                }
+
+                let (old_name, _) = &saved[idx - 1];
+                match rename_project_file(old_name, &new_name) {
+                    Ok(path) => println!("  ✓ Renamed '{}' → '{}' ({})\n", old_name, new_name, path.display()),
+                    Err(e) => println!("  ✗ Rename failed: {}\n", e),
                 }
                 continue;
             }
